@@ -3,4 +3,6 @@ name = "cod-limpio-impuesto-ventas"
 version = "0.1.0"
 description = "Add your description here"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "pytest>=8.4.1",
+]
