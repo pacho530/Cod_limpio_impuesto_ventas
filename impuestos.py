@@ -1,62 +1,63 @@
 from typing import Union, List
 
-class TipoImpuestoDesconocidoError(ValueError):
-    pass
-
-class TipoImpuestoInvalidoError(TypeError):
-    pass
-
-class PrecioInvalidoError(ValueError):
-    pass
-
-
+# Tasas porcentuales sobre el precio base
 TAX_RATES = {
-    "exento": 0.00,   # sin impuesto
-    "iva19":  0.19,   # IVA 19%
-    "iva5":   0.05,   # IVA 5%
-    "inc8":   0.08,   # Impuesto al consumo 8%
-    "licor25": 0.25,  # Licores 25%
+    "exento": 0.00,
+    "iva19":  0.19,
+    "iva5":   0.05,
+    "inc8":   0.08,
+    "licor25": 0.25,
 }
 
-BOLSA_FIJA = 50  # valor fijo por bolsa
+# Valor fijo por bolsa
+BOLSA_FIJA = 50
 
 
 class CalculadoraImpuestos:
     """
     Calcula el total a pagar aplicando impuestos.
-    - tipo_impuesto puede ser str (un solo impuesto) o list[str] (varios).
-    - Porcentuales se aplican sobre el precio_base.
-    - 'bolsa' suma un valor fijo (BOLSA_FIJA).
-    Validaciones:
-    - precio_base numérico y >= 0
-    - tipo_impuesto str no vacío o lista no vacía de strings no vacíos
-    - tipos desconocidos -> TipoImpuestoDesconocidoError
+
+    Reglas:
+    - Si el tipo de impuesto es str: aplica un solo impuesto (porcentaje sobre base o 'bolsa' fija).
+    - Si es list[str]: aplica cada impuesto de la lista (porcentajes sobre base + 'bolsa' fija si aparece).
+    - Redondea el total al entero más cercano.
+
+    Validaciones (estilo TDD):
+    - precio_base debe ser numérico (int/float) y >= 0.
+    - tipo_impuesto debe ser str no vacío o list[str] no vacía de strings no vacíos.
+    - tipos desconocidos -> ValueError.
+    - precio no numérico -> TypeError.
     """
 
     def __init__(self, precio_base: Union[int, float], tipo_impuesto: Union[str, List[str]]):
         self.precio_base = precio_base
         self.tipo_impuesto = tipo_impuesto
 
+    # -------- Validaciones --------
     def _validar(self) -> None:
-        # precio_base
+        # precio_base numérico
         if not isinstance(self.precio_base, (int, float)):
-            raise TipoImpuestoInvalidoError("El precio base debe ser numérico (int o float).")
-        if self.precio_base < 0:
-            raise PrecioInvalidoError("El precio base no puede ser negativo.")
+            raise TypeError("El precio base debe ser numérico (int o float).")
 
-        # tipo_impuesto
+        # precio_base no negativo
+        if self.precio_base < 0:
+            raise ValueError("El precio base no puede ser negativo.")
+
+        # tipo_impuesto válido
         if isinstance(self.tipo_impuesto, str):
             if self.tipo_impuesto.strip() == "":
-                raise TipoImpuestoDesconocidoError("El tipo de impuesto no puede ser vacío.")
+                raise ValueError("El tipo de impuesto no puede ser vacío.")
         elif isinstance(self.tipo_impuesto, list):
             if len(self.tipo_impuesto) == 0:
-                raise TipoImpuestoDesconocidoError("La lista de impuestos no puede estar vacía.")
+                raise ValueError("La lista de impuestos no puede estar vacía.")
+            # Todos los elementos deben ser strings no vacíos
             for t in self.tipo_impuesto:
                 if not isinstance(t, str) or t.strip() == "":
-                    raise TipoImpuestoDesconocidoError("Todos los impuestos deben ser cadenas no vacías.")
+                    raise ValueError("Todos los impuestos deben ser cadenas no vacías.")
         else:
-            raise TipoImpuestoInvalidoError("tipo_impuesto debe ser str o list[str].")
+            raise TypeError("El tipo de impuesto debe ser una cadena o una lista de cadenas.")
 
+    # -------- Aplicación de impuestos --------
     def _aplicar_un_impuesto(self, acumulado: float, tipo: str) -> float:
         tipo = tipo.strip().lower()
 
@@ -66,13 +67,12 @@ class CalculadoraImpuestos:
         if tipo in TAX_RATES:
             return acumulado + (self.precio_base * TAX_RATES[tipo])
 
-        raise TipoImpuestoDesconocidoError(f"Tipo de impuesto desconocido: {tipo}")
+        # Impuesto desconocido
+        raise ValueError(f"Tipo de impuesto desconocido: {tipo}")
 
     def calcular(self) -> int:
-        """
-        Devuelve el total a pagar (entero redondeado).
-        """
         self._validar()
+
         total = float(self.precio_base)
 
         # Un solo impuesto
@@ -85,3 +85,4 @@ class CalculadoraImpuestos:
             total = self._aplicar_un_impuesto(total, t)
 
         return round(total)
+
